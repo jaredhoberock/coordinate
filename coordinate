@@ -24,6 +24,7 @@ template<class ArithmeticType, size_t Rank>
 class coordinate
 {
   static_assert(std::is_arithmetic<ArithmeticType>::value, "ArithmeticType must be an arithmetic type.");
+  static_assert(Rank > 0, "Rank must be greater than 0.");
 
   public:
     using value_type                = ArithmeticType;
@@ -57,23 +58,20 @@ class coordinate
     template<class OtherArithmeticType>
     coordinate(OtherArithmeticType val,
                typename enable_if<
+                 (Rank > 1) &&
                  is_arithmetic<OtherArithmeticType>::value
                >::type* = 0)
     {
-      for(size_type i = 0; i < size(); ++i)
-      {
-        operator[](i) = val;
-      }
+      fill(val);
     }
 
-    // XXX how to use enable_if here?
-    template<class... OtherArithmeticType>
-    //coordinate(OtherArithmeticType... args<
-    //           typename enable_if<
-    //             __all_of<
-    //               is_arithmetic<OtherArithmeticType>::value...
-    //             >::value
-    //           >::type* = 0)
+    template<class... OtherArithmeticType,
+             typename = typename enable_if<
+               __all_of<
+                 is_arithmetic<OtherArithmeticType>::value...
+               >::value &&
+               sizeof...(OtherArithmeticType) == Rank
+             >::type>
     coordinate(OtherArithmeticType... args)
       : storage_{static_cast<value_type>(args)...}
     {}
@@ -293,6 +291,15 @@ class coordinate
       using result_type = coordinate<typename common_type<ArithmeticType,OtherArithmeticType>::type, Rank>;
 
       return result_type{*this} /= rhs;
+    }
+
+    template<class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value
+    >::type
+      fill(OtherArithmeticType val)
+    {
+      storage_.fill(val);
     }
 
   private:

@@ -24,6 +24,10 @@ int main()
 
   std::cout << "sum: " << sum[0] << ", " << sum[1] << ", " << sum[2] << std::endl;
 
+  std::float3 one(1);
+
+  std::cout << "one[2]: " << one[2] << std::endl;
+
   return 0;
 }
 
