@@ -39,14 +39,16 @@ class point : public __small_vector_facade<point<ArithmeticType,Rank>, Arithmeti
 };
 
 
-template<class ArithmeticType1, class ArithmeticType2, size_t Rank>
+template<class T1, class T2, size_t Rank>
 typename enable_if<
-  is_arithmetic<ArithmeticType1>::value,
-  point<typename common_type<ArithmeticType1,ArithmeticType2>::type, Rank>
+  __has_operator_multiplies<T1,T2>::value,
+  point<typename common_type<T1,T2>::type, Rank>
 >::type
-  operator*(ArithmeticType1 val, const point<ArithmeticType2,Rank>& coord)
+  operator*(T1 val, const point<T2,Rank>& p)
 {
-  return point<ArithmeticType1,Rank>(val) * coord;
+  using result_type = point<common_type_t<T1,T2>, Rank>;
+
+  return result_type(val) * p;
 }
 
 
@@ -54,11 +56,11 @@ template<size_t I, class Tuple>
 struct tuple_element;
 
 
-template<size_t I, class ArithmeticType, size_t Rank>
-struct tuple_element<I,point<ArithmeticType,Rank>>
+template<size_t I, class T, size_t Rank>
+struct tuple_element<I,point<T,Rank>>
 {
   static_assert(I < Rank, "I must be less than Rank.");
-  using type = ArithmeticType;
+  using type = T;
 };
 
 
@@ -159,54 +161,64 @@ class __axis_aligned_box
 };
 
 
-template<class PointType1, class PointType2>
-struct common_type<__axis_aligned_box<PointType1>,__axis_aligned_box<PointType2>>
-{
-  using type = __axis_aligned_box<common_type_t<PointType1,PointType2>>;
-};
-
-
-template<class Range>
-typename Range::value_type __product(const Range& rng, typename Range::value_type init = typename Range::value_type{1})
-{
-  for(auto x : rng)
-  {
-    init *= x;
-  }
-
-  return init;
-}
-
-
-// note that regular_grid is an arithmetic type, which allows enables nesting
-//template<class ArithmeticType, size_t Rank>
-//class regular_grid
+//template<class PointType1, class PointType2>
+//struct common_type<__axis_aligned_box<PointType1>,__axis_aligned_box<PointType2>>
 //{
+//  using type = __axis_aligned_box<common_type_t<PointType1,PointType2>>;
+//};
+//
+//
+//template<class Range>
+//typename Range::value_type __product(const Range& rng, typename Range::value_type init = typename Range::value_type{1})
+//{
+//  for(auto x : rng)
+//  {
+//    init *= x;
+//  }
+//
+//  return init;
+//}
+//
+//
+//template<class ArithmeticType, size_t Rank>
+//class regular_grid;
+//
+//
+//template<class ArithmeticType, size_t Rank>
+//struct is_arithmetic<regular_grid<ArithmeticType,Rank>> : is_arithmetic<ArithmeticType> {};
+//
+//
+//// note that regular_grid is an arithmetic type, which enables nesting
+//template<class ArithmeticType, size_t Rank>
+//class regular_grid : public __small_vector_facade<regular_grid<ArithmeticType,Rank>, ArithmeticType, Rank>
+//{
+//  using super_t = __small_vector_facade<regular_grid<ArithmeticType,Rank>, ArithmeticType, Rank>;
+//
 //  public:
-//    using value_type = ArithmeticType;
-//    using index_type = point<size_t,Rank>;
-//    using size_type  = size_t;
+//    using value_type      = ArithmeticType;
+//    using reference       = value_type;
+//    using const_reference = reference;
+//    using index_type      = point<size_t,Rank>;
+//    using size_type       = size_t;
 //
-//    regular_grid(const value_type& min, const value_type& max)
-//      : box_(min,max)
-//    {}
+//    using super_t::super_t;
 //
-//    const point_type& min() const
+//    const value_type& min() const
 //    {
 //      return box_.min();
 //    }
 //
-//    const point_type& max() const
+//    const value_type& max() const
 //    {
 //      return box_.max();
 //    }
 //
-//    const point_type& extent() const
+//    const value_type& extent() const
 //    {
 //      return box_.extent();
 //    }
 //
-//    bool contains(const point_type& p) const
+//    bool contains(const value_type& p) const
 //    {
 //      return box_.contains(p);
 //    }
@@ -214,6 +226,11 @@ typename Range::value_type __product(const Range& rng, typename Range::value_typ
 //    size_type size() const
 //    {
 //      return __product(extent());
+//    }
+//
+//    const_reference operator[](const index_type& idx) const
+//    {
+//      return min() + idx;
 //    }
 //
 //  private:

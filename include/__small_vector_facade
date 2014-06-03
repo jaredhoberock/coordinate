@@ -2,7 +2,7 @@
 
 #include <type_traits>
 #include <algorithm>
-#include <__has_arithmetic_operators>
+#include <__operator_traits>
 
 namespace std
 {
