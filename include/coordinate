@@ -178,6 +178,7 @@ typename Range::value_type __product(const Range& rng, typename Range::value_typ
 }
 
 
+// note that regular_grid is an arithmetic type, which allows enables nesting
 //template<class ArithmeticType, size_t Rank>
 //class regular_grid
 //{
