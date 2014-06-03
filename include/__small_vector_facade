@@ -1,0 +1,354 @@
+#pragma once
+
+#include <type_traits>
+#include <algorithm>
+
+namespace std
+{
+
+
+template<bool Value1, bool... Values>
+struct __all_of
+  : std::integral_constant<bool, Value1 && __all_of<Values...>::value>
+{};
+
+
+template<bool Value1> struct __all_of<Value1>
+  : std::integral_constant<bool, Value1>
+{};
+
+
+template<class T1, class T2>
+using common_type_t = typename common_type<T1,T2>::type;
+
+
+template<class T>
+struct __is_scalar_arithmetic
+  : std::integral_constant<
+      bool,
+      (is_scalar<T>::value && is_arithmetic<T>::value)
+    >
+{};
+
+
+template<typename Derived, typename ArithmeticType, std::size_t Rank>
+  class __small_vector_facade
+{
+  static_assert(std::is_arithmetic<ArithmeticType>::value, "ArithmeticType must be an arithmetic type.");
+  static_assert(Rank > 0, "Rank must be greater than 0.");
+
+  public:
+    using value_type                = ArithmeticType;
+    using reference                 = value_type&;
+    using const_reference           = const value_type&;
+    using size_type                 = size_t;
+    using pointer                   = value_type*;
+    using const_pointer             = const value_type*;
+    using iterator                  = pointer;
+    using const_iterator            = const_pointer;
+    static constexpr size_type rank = Rank;
+
+    __small_vector_facade()
+    {
+      for(size_type i = 0; i != rank; ++i)
+      {
+        (*this)[i] = value_type{};
+      }
+    }
+
+    __small_vector_facade(const __small_vector_facade &other)
+    {
+      for(size_type i = 0; i != rank; ++i)
+      {
+        (*this)[i] = other[i];
+      }
+    }
+
+    template<class... ScalarArithmeticType,
+             typename = typename enable_if<
+               __all_of<
+                 __is_scalar_arithmetic<ScalarArithmeticType>::value...
+               >::value &&
+               sizeof...(ScalarArithmeticType) == Rank
+             >::type>
+    __small_vector_facade(ScalarArithmeticType... args)
+    {
+      std::initializer_list<value_type> list = {static_cast<value_type>(args)...};
+      std::copy(list.begin(), list.end(), begin());
+    }
+
+    // copies from another point
+    // XXX should fully parameterize this
+    template<class OtherDerived, class OtherArithmeticType>
+    __small_vector_facade(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& other,
+                          typename enable_if<
+                            __is_scalar_arithmetic<OtherArithmeticType>::value
+                          >::type* = 0)
+    {
+      for(size_type i = 0; i < size(); ++i)
+      {
+        operator[](i) = other[i];
+      }
+    }
+
+    // fills the point with a constant value
+    template<class ScalarArithmeticType>
+    __small_vector_facade(ScalarArithmeticType val,
+                    typename enable_if<
+                      (Rank > 1) &&
+                      __is_scalar_arithmetic<ScalarArithmeticType>::value
+                    >::type* = 0)
+    {
+      std::fill(begin(),end(),val);
+    }
+
+    constexpr size_type size() const
+    {
+      return rank;
+    }
+
+    pointer data()
+    {
+      return reinterpret_cast<pointer>(this);
+    }
+
+    const_pointer data() const
+    {
+      return reinterpret_cast<const_pointer>(this);
+    }
+
+    iterator begin()
+    {
+      return data();
+    }
+
+    iterator end()
+    {
+      return data() + size();
+    }
+
+    const_iterator begin() const
+    {
+      return data();
+    }
+
+    const_iterator end() const
+    {
+      return data() + size();
+    }
+
+    const_iterator cbegin() const
+    {
+      return begin();
+    }
+
+    const_iterator cend() const
+    {
+      return end();
+    }
+
+    bool operator==(const __small_vector_facade& rhs) const
+    {
+      return std::equal(begin(), end(), rhs.begin());
+    }
+
+    bool operator!=(const __small_vector_facade& rhs) const
+    {
+      return !(*this == rhs);
+    }
+
+    reference operator[](size_type i)
+    {
+      return begin()[i];
+    }
+
+    const_reference operator[](size_type i) const
+    {
+      return begin()[i];
+    }
+
+    // multiply by scalar
+    template<class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      Derived&
+    >::type
+      operator*=(OtherArithmeticType rhs)
+    {
+      for(size_type i = 0; i < rank; ++i)
+      {
+        operator[](i) *= rhs;
+      }
+
+      return derived();
+    }
+
+    // divide by scalar
+    template<class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      Derived&
+    >::type
+      operator/=(OtherArithmeticType rhs)
+    {
+      for(size_type i = 0; i < rank; ++i)
+      {
+        operator[](i) /= rhs;
+      }
+
+      return derived();
+    }
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      Derived&
+    >::type
+      operator+=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+    {
+      for(size_type i = 0; i < rank; ++i)
+      {
+        operator[](i) += rhs[i];
+      }
+
+      return derived();
+    }
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      common_type_t<Derived,OtherDerived>
+    >::type
+      operator+(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+    {
+      using result_type = common_type_t<Derived,OtherDerived>;
+
+      return result_type{*this} += rhs;
+    }
+
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      Derived&
+    >::type
+      operator-=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+    {
+      for(size_type i = 0; i < rank; ++i)
+      {
+        operator[](i) -= rhs[i];
+      }
+
+      return derived();
+    }
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      common_type_t<Derived,OtherDerived>
+    >::type
+      operator-(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+    {
+      using result_type = common_type_t<Derived,OtherDerived>;
+
+      return result_type{*this} -= rhs;
+    }
+
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      Derived&
+    >::type
+      operator*=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+    {
+      for(size_type i = 0; i < rank; ++i)
+      {
+        operator[](i) *= rhs[i];
+      }
+
+      return derived();
+    }
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      common_type_t<Derived,OtherDerived>
+    >::type
+      operator*(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+    {
+      using result_type = common_type_t<Derived,OtherDerived>;
+
+      return result_type{*this} *= rhs;
+    }
+
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      Derived&
+    >::type
+      operator/=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+    {
+      for(size_type i = 0; i < rank; ++i)
+      {
+        operator[](i) /= rhs[i];
+      }
+
+      return derived();
+    }
+
+    // XXX should try to fully parameterize the rhs
+    template<class OtherDerived, class OtherArithmeticType>
+    typename enable_if<
+      is_arithmetic<OtherArithmeticType>::value,
+      common_type_t<Derived,OtherDerived>
+    >::type
+      operator/(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+    {
+      using result_type = common_type_t<Derived,OtherDerived>;
+
+      return result_type{*this} /= rhs;
+    }
+
+
+  private:
+    inline Derived &derived()
+    {
+      return static_cast<Derived&>(*this);
+    }
+
+    inline const Derived &derived() const
+    {
+      return static_cast<const Derived&>(*this);
+    }
+};
+
+
+template<size_t I, class Derived, class ArithmeticType, size_t Rank>
+typename __small_vector_facade<Derived,ArithmeticType,Rank>::reference
+  get(__small_vector_facade<Derived,ArithmeticType,Rank>& x)
+{
+  static_assert(I < Rank, "I must be less than Rank.");
+  return x[I];
+}
+
+
+template<size_t I, class Derived, class ArithmeticType, size_t Rank>
+typename __small_vector_facade<Derived,ArithmeticType,Rank>::const_reference
+  get(const __small_vector_facade<Derived,ArithmeticType,Rank>& x)
+{
+  static_assert(I < Rank, "I must be less than Rank.");
+  return x[I];
+}
+
+
+}
+

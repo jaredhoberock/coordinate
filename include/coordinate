@@ -1,0 +1,224 @@
+#pragma once
+
+#include <array>
+#include <initializer_list>
+#include <type_traits>
+#include <__small_vector_facade>
+
+namespace std
+{
+
+
+template<class, size_t> class point;
+
+
+template<class ArithmeticType1, size_t Rank, class ArithmeticType2>
+struct common_type<
+  point<ArithmeticType1,Rank>,
+  point<ArithmeticType2,Rank>
+>
+{
+  using type = point<typename common_type<ArithmeticType1,ArithmeticType2>::type, Rank>;
+};
+
+
+template<class ArithmeticType, size_t Rank>
+class point : public __small_vector_facade<point<ArithmeticType,Rank>, ArithmeticType, Rank>
+{
+  using super_t = __small_vector_facade<point<ArithmeticType,Rank>, ArithmeticType, Rank>;
+
+  public:
+    using super_t::super_t;
+
+    point() = default;
+
+    point(const point& other) = default;
+
+  private:
+    std::array<ArithmeticType,Rank> storage_;
+};
+
+
+template<class ArithmeticType1, class ArithmeticType2, size_t Rank>
+typename enable_if<
+  is_arithmetic<ArithmeticType1>::value,
+  point<typename common_type<ArithmeticType1,ArithmeticType2>::type, Rank>
+>::type
+  operator*(ArithmeticType1 val, const point<ArithmeticType2,Rank>& coord)
+{
+  return point<ArithmeticType1,Rank>(val) * coord;
+}
+
+
+template<size_t I, class Tuple>
+struct tuple_element;
+
+
+template<size_t I, class ArithmeticType, size_t Rank>
+struct tuple_element<I,point<ArithmeticType,Rank>>
+{
+  static_assert(I < Rank, "I must be less than Rank.");
+  using type = ArithmeticType;
+};
+
+
+using int1  = point<int,1>;
+using int2  = point<int,2>;
+using int3  = point<int,3>;
+using int4  = point<int,4>;
+using int5  = point<int,5>;
+using int6  = point<int,6>;
+using int7  = point<int,7>;
+using int8  = point<int,8>;
+using int9  = point<int,9>;
+using int10 = point<int,10>;
+
+
+using size1  = point<size_t,1>;
+using size2  = point<size_t,2>;
+using size3  = point<size_t,3>;
+using size4  = point<size_t,4>;
+using size5  = point<size_t,5>;
+using size6  = point<size_t,6>;
+using size7  = point<size_t,7>;
+using size8  = point<size_t,8>;
+using size9  = point<size_t,9>;
+using size10 = point<size_t,10>;
+
+
+using float1  = point<float,1>;
+using float2  = point<float,2>;
+using float3  = point<float,3>;
+using float4  = point<float,4>;
+using float5  = point<float,5>;
+using float6  = point<float,6>;
+using float7  = point<float,7>;
+using float8  = point<float,8>;
+using float9  = point<float,9>;
+using float10 = point<float,10>;
+
+
+using double1  = point<double,1>;
+using double2  = point<double,2>;
+using double3  = point<double,3>;
+using double4  = point<double,4>;
+using double5  = point<double,5>;
+using double6  = point<double,6>;
+using double7  = point<double,7>;
+using double8  = point<double,8>;
+using double9  = point<double,9>;
+using double10 = point<double,10>;
+
+
+template<class PointType>
+class __axis_aligned_box
+  : public __small_vector_facade<__axis_aligned_box<PointType>,PointType,2>
+{
+  using super_t = __small_vector_facade<__axis_aligned_box<PointType>,PointType,2>;
+
+  public:
+    using point_type = PointType;
+
+    using super_t::super_t;
+
+    const point_type& min() const
+    {
+      return min_;
+    }
+
+    const point_type& max() const
+    {
+      return max_;
+    }
+
+    const point_type& extent() const
+    {
+      return max() - min();
+    }
+
+    bool empty() const
+    {
+      return min() == max();
+    }
+
+    bool contains(const point_type& x) const
+    {
+      bool result = true;
+
+      for(size_t dim = 0; dim != super_t::rank; ++dim)
+      {
+        result = result && min()[dim] <= result;
+        result = result && result < max()[dim];
+      }
+
+      return result;
+    }
+
+  private:
+    point_type min_, max_;
+};
+
+
+template<class PointType1, class PointType2>
+struct common_type<__axis_aligned_box<PointType1>,__axis_aligned_box<PointType2>>
+{
+  using type = __axis_aligned_box<common_type_t<PointType1,PointType2>>;
+};
+
+
+template<class Range>
+typename Range::value_type __product(const Range& rng, typename Range::value_type init = typename Range::value_type{1})
+{
+  for(auto x : rng)
+  {
+    init *= x;
+  }
+
+  return init;
+}
+
+
+//template<class ArithmeticType, size_t Rank>
+//class regular_grid
+//{
+//  public:
+//    using value_type = ArithmeticType;
+//    using index_type = point<size_t,Rank>;
+//    using size_type  = size_t;
+//
+//    regular_grid(const value_type& min, const value_type& max)
+//      : box_(min,max)
+//    {}
+//
+//    const point_type& min() const
+//    {
+//      return box_.min();
+//    }
+//
+//    const point_type& max() const
+//    {
+//      return box_.max();
+//    }
+//
+//    const point_type& extent() const
+//    {
+//      return box_.extent();
+//    }
+//
+//    bool contains(const point_type& p) const
+//    {
+//      return box_.contains(p);
+//    }
+//
+//    size_type size() const
+//    {
+//      return __product(extent());
+//    }
+//
+//  private:
+//    __axis_aligned_box<index_type> box_;
+//};
+
+
+}
+
