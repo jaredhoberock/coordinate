@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include <algorithm>
+#include <__has_arithmetic_operators>
 
 namespace std
 {
@@ -22,23 +23,14 @@ template<class T1, class T2>
 using common_type_t = typename common_type<T1,T2>::type;
 
 
-template<class T>
-struct __is_scalar_arithmetic
-  : std::integral_constant<
-      bool,
-      (is_scalar<T>::value && is_arithmetic<T>::value)
-    >
-{};
-
-
-template<typename Derived, typename ArithmeticType, std::size_t Rank>
+template<typename Derived, typename T, std::size_t Rank>
   class __small_vector_facade
 {
-  static_assert(std::is_arithmetic<ArithmeticType>::value, "ArithmeticType must be an arithmetic type.");
+  static_assert(__has_arithmetic_operators<T>::value, "T must have arithmetic operators.");
   static_assert(Rank > 0, "Rank must be greater than 0.");
 
   public:
-    using value_type                = ArithmeticType;
+    using value_type                = T;
     using reference                 = value_type&;
     using const_reference           = const value_type&;
     using size_type                 = size_t;
@@ -64,14 +56,14 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
       }
     }
 
-    template<class... ScalarArithmeticType,
+    template<class... OtherT,
              typename = typename enable_if<
                __all_of<
-                 __is_scalar_arithmetic<ScalarArithmeticType>::value...
+                 is_arithmetic<OtherT>::value...
                >::value &&
-               sizeof...(ScalarArithmeticType) == Rank
+               sizeof...(OtherT) == Rank
              >::type>
-    __small_vector_facade(ScalarArithmeticType... args)
+    __small_vector_facade(OtherT... args)
     {
       std::initializer_list<value_type> list = {static_cast<value_type>(args)...};
       std::copy(list.begin(), list.end(), begin());
@@ -79,10 +71,10 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
 
     // copies from another point
     // XXX should fully parameterize this
-    template<class OtherDerived, class OtherArithmeticType>
-    __small_vector_facade(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& other,
+    template<class OtherDerived, class OtherT>
+    __small_vector_facade(const __small_vector_facade<OtherDerived,OtherT,Rank>& other,
                           typename enable_if<
-                            __is_scalar_arithmetic<OtherArithmeticType>::value
+                            is_arithmetic<OtherT>::value
                           >::type* = 0)
     {
       for(size_type i = 0; i < size(); ++i)
@@ -92,12 +84,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // fills the point with a constant value
-    template<class ScalarArithmeticType>
-    __small_vector_facade(ScalarArithmeticType val,
-                    typename enable_if<
-                      (Rank > 1) &&
-                      __is_scalar_arithmetic<ScalarArithmeticType>::value
-                    >::type* = 0)
+    template<class OtherT>
+    __small_vector_facade(OtherT val,
+                          typename enable_if<
+                            (Rank > 1) &&
+                            is_convertible<OtherT,T>::value
+                          >::type* = 0)
     {
       std::fill(begin(),end(),val);
     }
@@ -168,12 +160,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // multiply by scalar
-    template<class OtherArithmeticType>
+    template<class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_multiplies_assign<value_type,OtherT>::value,
       Derived&
     >::type
-      operator*=(OtherArithmeticType rhs)
+      operator*=(OtherT rhs)
     {
       for(size_type i = 0; i < rank; ++i)
       {
@@ -184,12 +176,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // divide by scalar
-    template<class OtherArithmeticType>
+    template<class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_divides_assign<value_type,OtherT>::value,
       Derived&
     >::type
-      operator/=(OtherArithmeticType rhs)
+      operator/=(OtherT rhs)
     {
       for(size_type i = 0; i < rank; ++i)
       {
@@ -200,12 +192,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_plus_assign<value_type,OtherT>::value,
       Derived&
     >::type
-      operator+=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+      operator+=(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs)
     {
       for(size_type i = 0; i < rank; ++i)
       {
@@ -216,12 +208,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_plus<value_type,OtherT>::value,
       common_type_t<Derived,OtherDerived>
     >::type
-      operator+(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+      operator+(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
     {
       using result_type = common_type_t<Derived,OtherDerived>;
 
@@ -230,12 +222,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
 
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_minus_assign<OtherT>::value,
       Derived&
     >::type
-      operator-=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+      operator-=(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs)
     {
       for(size_type i = 0; i < rank; ++i)
       {
@@ -246,12 +238,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_minus<value_type,OtherT>::value,
       common_type_t<Derived,OtherDerived>
     >::type
-      operator-(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+      operator-(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
     {
       using result_type = common_type_t<Derived,OtherDerived>;
 
@@ -260,12 +252,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
 
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_multiplies_assign<value_type,OtherT>::value,
       Derived&
     >::type
-      operator*=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+      operator*=(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs)
     {
       for(size_type i = 0; i < rank; ++i)
       {
@@ -276,12 +268,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_multiplies<value_type,OtherT>::value,
       common_type_t<Derived,OtherDerived>
     >::type
-      operator*(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+      operator*(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
     {
       using result_type = common_type_t<Derived,OtherDerived>;
 
@@ -290,12 +282,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
 
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_divides_assign<value_type,OtherT>::value,
       Derived&
     >::type
-      operator/=(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs)
+      operator/=(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs)
     {
       for(size_type i = 0; i < rank; ++i)
       {
@@ -306,12 +298,12 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
     }
 
     // XXX should try to fully parameterize the rhs
-    template<class OtherDerived, class OtherArithmeticType>
+    template<class OtherDerived, class OtherT>
     typename enable_if<
-      is_arithmetic<OtherArithmeticType>::value,
+      __has_operator_divides<value_type,OtherT>::value,
       common_type_t<Derived,OtherDerived>
     >::type
-      operator/(const __small_vector_facade<OtherDerived,OtherArithmeticType,Rank>& rhs) const
+      operator/(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
     {
       using result_type = common_type_t<Derived,OtherDerived>;
 
@@ -332,18 +324,18 @@ template<typename Derived, typename ArithmeticType, std::size_t Rank>
 };
 
 
-template<size_t I, class Derived, class ArithmeticType, size_t Rank>
-typename __small_vector_facade<Derived,ArithmeticType,Rank>::reference
-  get(__small_vector_facade<Derived,ArithmeticType,Rank>& x)
+template<size_t I, class Derived, class T, size_t Rank>
+typename __small_vector_facade<Derived,T,Rank>::reference
+  get(__small_vector_facade<Derived,T,Rank>& x)
 {
   static_assert(I < Rank, "I must be less than Rank.");
   return x[I];
 }
 
 
-template<size_t I, class Derived, class ArithmeticType, size_t Rank>
-typename __small_vector_facade<Derived,ArithmeticType,Rank>::const_reference
-  get(const __small_vector_facade<Derived,ArithmeticType,Rank>& x)
+template<size_t I, class Derived, class T, size_t Rank>
+typename __small_vector_facade<Derived,T,Rank>::const_reference
+  get(const __small_vector_facade<Derived,T,Rank>& x)
 {
   static_assert(I < Rank, "I must be less than Rank.");
   return x[I];
