@@ -59,7 +59,7 @@ template<typename Derived, typename T, std::size_t Rank>
     template<class... OtherT,
              typename = typename enable_if<
                __all_of<
-                 is_arithmetic<OtherT>::value...
+                 is_convertible<OtherT,value_type>::value...
                >::value &&
                sizeof...(OtherT) == Rank
              >::type>
@@ -74,7 +74,7 @@ template<typename Derived, typename T, std::size_t Rank>
     template<class OtherDerived, class OtherT>
     __small_vector_facade(const __small_vector_facade<OtherDerived,OtherT,Rank>& other,
                           typename enable_if<
-                            is_arithmetic<OtherT>::value
+                            is_convertible<OtherT,value_type>::value
                           >::type* = 0)
     {
       for(size_type i = 0; i < size(); ++i)
@@ -87,8 +87,8 @@ template<typename Derived, typename T, std::size_t Rank>
     template<class OtherT>
     __small_vector_facade(OtherT val,
                           typename enable_if<
-                            (Rank > 1) &&
-                            is_convertible<OtherT,T>::value
+                            (rank > 1) &&
+                            is_convertible<OtherT,value_type>::value
                           >::type* = 0)
     {
       std::fill(begin(),end(),val);
