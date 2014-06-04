@@ -154,74 +154,67 @@ struct common_type<__axis_aligned_box<T1>,__axis_aligned_box<T2>>
 };
 
 
-//template<class Range>
-//typename Range::value_type __product(const Range& rng, typename Range::value_type init = typename Range::value_type{1})
-//{
-//  for(auto x : rng)
-//  {
-//    init *= x;
-//  }
-//
-//  return init;
-//}
-//
-//
-//template<class ArithmeticType, size_t Rank>
-//class regular_grid;
-//
-//
-//template<class ArithmeticType, size_t Rank>
-//struct is_arithmetic<regular_grid<ArithmeticType,Rank>> : is_arithmetic<ArithmeticType> {};
-//
-//
-//// note that regular_grid is an arithmetic type, which enables nesting
-//template<class ArithmeticType, size_t Rank>
-//class regular_grid : public __small_vector_facade<regular_grid<ArithmeticType,Rank>, ArithmeticType, Rank>
-//{
-//  using super_t = __small_vector_facade<regular_grid<ArithmeticType,Rank>, ArithmeticType, Rank>;
-//
-//  public:
-//    using value_type      = ArithmeticType;
-//    using reference       = value_type;
-//    using const_reference = reference;
-//    using index_type      = point<size_t,Rank>;
-//    using size_type       = size_t;
-//
-//    using super_t::super_t;
-//
-//    const value_type& min() const
-//    {
-//      return box_.min();
-//    }
-//
-//    const value_type& max() const
-//    {
-//      return box_.max();
-//    }
-//
-//    const value_type& extent() const
-//    {
-//      return box_.extent();
-//    }
-//
-//    bool contains(const value_type& p) const
-//    {
-//      return box_.contains(p);
-//    }
-//
-//    size_type size() const
-//    {
-//      return __product(extent());
-//    }
-//
-//    const_reference operator[](const index_type& idx) const
-//    {
-//      return min() + idx;
-//    }
-//
-//  private:
-//    __axis_aligned_box<index_type> box_;
-//};
+template<class Range>
+typename Range::value_type __product(const Range& rng, typename Range::value_type init = typename Range::value_type{1})
+{
+  for(auto x : rng)
+  {
+    init *= x;
+  }
+
+  return init;
+}
+
+
+// T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
+// note regular_grid itself has these operators
+template<class T, size_t Rank>
+class regular_grid
+{
+  using super_t = __small_vector_facade<regular_grid<T,Rank>, T, Rank>;
+
+  public:
+    using index_type = point<size_t,Rank>;
+    using typename super_t::value_type;
+    using typename super_t::size_type;
+    using reference       = value_type;
+    using const_reference = reference;
+
+    using super_t::super_t;
+
+    const value_type& min() const
+    {
+      return box_.min();
+    }
+
+    const value_type& max() const
+    {
+      return box_.max();
+    }
+
+    const value_type& extent() const
+    {
+      return box_.extent();
+    }
+
+    bool contains(const value_type& p) const
+    {
+      return box_.contains(p);
+    }
+
+    size_type size() const
+    {
+      return __product(extent());
+    }
+
+    const_reference operator[](const index_type& idx) const
+    {
+      return min() + idx;
+    }
+
+  private:
+    __axis_aligned_box<index_type> box_;
+};
 
 
 }

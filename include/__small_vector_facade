@@ -5,6 +5,7 @@
 #include <__operator_traits>
 #include <iostream>
 #include <array>
+#include <utility>
 
 namespace std
 {
@@ -198,6 +199,51 @@ template<typename Derived, typename T, std::size_t Rank>
     {
       return begin()[i];
     }
+
+
+    template<class OtherDerived, class OtherT>
+    typename enable_if<
+      __has_operator_less<value_type,OtherT>::value,
+      bool
+    >::type
+    operator<(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
+    {
+      return std::lexicographical_compare(begin(), end(), rhs.begin(), rhs.end());
+    }
+
+
+    template<class OtherDerived, class OtherT>
+    typename enable_if<
+      __has_operator_less<OtherT,value_type>::value,
+      bool
+    >::type
+    operator>(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
+    {
+      return rhs < *this;
+    }
+
+
+    template<class OtherDerived, class OtherT>
+    typename enable_if<
+      __has_operator_less<OtherT,value_type>::value,
+      bool
+    >::type
+    operator<=(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
+    {
+      return !(rhs < (*this));
+    }
+
+
+    template<class OtherDerived, class OtherT>
+    typename enable_if<
+      __has_operator_less<value_type,OtherT>::value,
+      bool
+    >::type
+    operator>=(const __small_vector_facade<OtherDerived,OtherT,Rank>& rhs) const
+    {
+      return !(*this < rhs);
+    }
+
 
     // multiply by scalar
     template<class OtherT>
@@ -399,6 +445,7 @@ std::ostream& operator<<(std::ostream& os, const __small_vector_facade<Derived,T
 
   return os;
 }
+
 
 }
 
