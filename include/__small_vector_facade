@@ -43,78 +43,6 @@ template<typename Derived, typename T, std::size_t Rank>
     using const_iterator            = const_pointer;
     static constexpr size_type rank = Rank;
 
-    __small_vector_facade()
-    {
-      for(size_type i = 0; i != rank; ++i)
-      {
-        (*this)[i] = value_type{};
-      }
-    }
-
-    __small_vector_facade(const __small_vector_facade &other)
-    {
-      for(size_type i = 0; i != rank; ++i)
-      {
-        (*this)[i] = other[i];
-      }
-    }
-
-    template<class... OtherT,
-             typename = typename enable_if<
-               __all_of<
-                 is_convertible<OtherT,value_type>::value...
-               >::value &&
-               sizeof...(OtherT) == Rank
-             >::type>
-    __small_vector_facade(OtherT... args)
-    {
-      std::cout << "variadic constructor" << std::endl;
-
-      std::initializer_list<value_type> list = {static_cast<value_type>(args)...};
-
-      std::cout << "list size: " << list.size() << std::endl;
-
-      std::copy(list.begin(), list.end(), begin());
-    }
-
-    // copies from another point
-    // XXX should fully parameterize this
-    template<class OtherDerived, class OtherT>
-    __small_vector_facade(const __small_vector_facade<OtherDerived,OtherT,Rank>& other,
-                          typename enable_if<
-                            is_convertible<OtherT,value_type>::value
-                          >::type* = 0)
-    {
-      for(size_type i = 0; i < size(); ++i)
-      {
-        operator[](i) = other[i];
-      }
-    }
-
-    // fills the point with a constant value
-    template<class OtherT>
-    __small_vector_facade(OtherT val,
-                          typename enable_if<
-                            (rank > 1) &&
-                            is_convertible<OtherT,value_type>::value
-                          >::type* = 0)
-    {
-      std::fill(begin(),end(),val);
-    }
-
-    // converts to another point
-    template<class OtherDerived,
-             class = typename enable_if<
-               (OtherDerived::rank == rank) &&
-               is_convertible<value_type,typename OtherDerived::value_type>::value
-             >::type
-    >
-    operator OtherDerived () const
-    {
-      OtherDerived result(*this);
-      return result;
-    }
-
     constexpr size_type size() const
     {
       return rank;
@@ -142,12 +70,12 @@ template<typename Derived, typename T, std::size_t Rank>
 
     pointer data()
     {
-      return storage_.data();
+      return derived();
     }
 
     const_pointer data() const
     {
-      return storage_.data();
+      return derived();
     }
 
     iterator begin()
@@ -185,15 +113,18 @@ template<typename Derived, typename T, std::size_t Rank>
       return std::equal(begin(), end(), rhs.begin());
     }
 
+
     bool operator!=(const __small_vector_facade& rhs) const
     {
       return !(*this == rhs);
     }
 
+
     reference operator[](size_type i)
     {
       return begin()[i];
     }
+
 
     const_reference operator[](size_type i) const
     {
@@ -261,6 +192,7 @@ template<typename Derived, typename T, std::size_t Rank>
       return derived();
     }
 
+
     // divide by scalar
     template<class OtherT>
     typename enable_if<
@@ -277,6 +209,7 @@ template<typename Derived, typename T, std::size_t Rank>
       return derived();
     }
 
+
     // XXX should try to fully parameterize the rhs
     template<class OtherDerived, class OtherT>
     typename enable_if<
@@ -292,6 +225,7 @@ template<typename Derived, typename T, std::size_t Rank>
 
       return derived();
     }
+
 
     // XXX should try to fully parameterize the rhs
     template<class OtherDerived, class OtherT>
@@ -406,8 +340,6 @@ template<typename Derived, typename T, std::size_t Rank>
     {
       return static_cast<const Derived&>(*this);
     }
-
-    std::array<T,Rank> storage_;
 };
 
 
@@ -445,6 +377,109 @@ std::ostream& operator<<(std::ostream& os, const __small_vector_facade<Derived,T
 
   return os;
 }
+
+
+template<typename Derived, typename Base, typename T, std::size_t Rank>
+  class __small_vector_adaptor : public __small_vector_facade<Derived, T, Rank>
+{
+  static_assert(__has_arithmetic_operators<T>::value, "T must have arithmetic operators.");
+  static_assert(Rank > 0, "Rank must be greater than 0.");
+
+  using super_t = __small_vector_facade<Derived,T,Rank>;
+
+  public:
+    using typename super_t::value_type;
+    using typename super_t::reference;
+    using typename super_t::size_type;
+    using typename super_t::pointer;
+    using typename super_t::const_pointer;
+
+
+    __small_vector_adaptor()
+    {
+      for(size_type i = 0; i != super_t::rank; ++i)
+      {
+        base()[i] = value_type{};
+      }
+    }
+
+
+    __small_vector_adaptor(const __small_vector_adaptor &other)
+    {
+      for(size_type i = 0; i != super_t::rank; ++i)
+      {
+        base()[i] = other[i];
+      }
+    }
+
+
+    template<class... OtherT,
+             typename = typename enable_if<
+               __all_of<
+                 is_convertible<OtherT,value_type>::value...
+               >::value &&
+               sizeof...(OtherT) == Rank
+             >::type>
+    __small_vector_adaptor(OtherT... args)
+    {
+      std::initializer_list<value_type> list = {static_cast<value_type>(args)...};
+
+      std::copy(list.begin(), list.end(), super_t::begin());
+    }
+
+
+    // XXX should fully parameterize this
+    template<class OtherDerived, class OtherT>
+    __small_vector_adaptor(const __small_vector_facade<OtherDerived,OtherT,Rank>& other,
+                           typename enable_if<
+                             is_convertible<OtherT,value_type>::value
+                           >::type* = 0)
+    {
+      for(size_type i = 0; i < super_t::size(); ++i)
+      {
+        super_t::operator[](i) = other[i];
+      }
+    }
+
+
+    // fills the vector with a constant value
+    template<class OtherT>
+    __small_vector_adaptor(OtherT val,
+                           typename enable_if<
+                             (Rank > 1) &&
+                             is_convertible<OtherT,value_type>::value
+                           >::type* = 0)
+    {
+      std::fill(super_t::begin(),super_t::end(),val);
+    }
+
+
+    operator pointer ()
+    {
+      return base().data();
+    }
+
+
+    operator const_pointer () const
+    {
+      return base().data();
+    }
+
+
+  protected:
+    Base& base()
+    {
+      return base_;
+    }
+
+    const Base& base() const
+    {
+      return base_;
+    }
+
+  private:
+    Base base_;
+};
 
 
 }

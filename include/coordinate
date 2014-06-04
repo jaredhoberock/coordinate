@@ -4,6 +4,7 @@
 #include <initializer_list>
 #include <type_traits>
 #include <__small_vector_facade>
+#include <array>
 
 namespace std
 {
@@ -11,9 +12,9 @@ namespace std
 
 // T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
 template<class T, size_t Rank>
-class point : public __small_vector_facade<point<T,Rank>, T, Rank>
+class point : public __small_vector_adaptor<point<T,Rank>, std::array<T,Rank>, T, Rank>
 {
-  using super_t = __small_vector_facade<point<T,Rank>, T, Rank>;
+  using super_t = __small_vector_adaptor<point<T,Rank>, std::array<T,Rank>, T, Rank>;
 
   public:
     using super_t::super_t;
@@ -103,9 +104,9 @@ using double10 = point<double,10>;
 // T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
 template<class T>
 class __axis_aligned_box
-  : public __small_vector_facade<__axis_aligned_box<T>,T,2>
+  : public __small_vector_adaptor<__axis_aligned_box<T>,std::array<T,2>,T,2>
 {
-  using super_t = __small_vector_facade<__axis_aligned_box<T>,T,2>;
+  using super_t = __small_vector_adaptor<__axis_aligned_box<T>,std::array<T,2>,T,2>;
 
   public:
     using point_type = T;
@@ -169,7 +170,7 @@ typename Range::value_type __product(const Range& rng, typename Range::value_typ
 // T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
 // note regular_grid itself has these operators
 template<class T, size_t Rank>
-class regular_grid
+class regular_grid : __small_vector_facade<regular_grid<T,Rank>, T, Rank>
 {
   using super_t = __small_vector_facade<regular_grid<T,Rank>, T, Rank>;
 
