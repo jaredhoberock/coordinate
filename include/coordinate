@@ -9,27 +9,21 @@ namespace std
 {
 
 
-template<class ArithmeticType, size_t Rank>
-class point : public __small_vector_facade<point<ArithmeticType,Rank>, ArithmeticType, Rank>
+// T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
+template<class T, size_t Rank>
+class point : public __small_vector_facade<point<T,Rank>, T, Rank>
 {
-  using super_t = __small_vector_facade<point<ArithmeticType,Rank>, ArithmeticType, Rank>;
+  using super_t = __small_vector_facade<point<T,Rank>, T, Rank>;
 
   public:
     using super_t::super_t;
-
-    point() = default;
-
-    point(const point& other) = default;
 };
 
 
-template<class ArithmeticType1, size_t Rank, class ArithmeticType2>
-struct common_type<
-  point<ArithmeticType1,Rank>,
-  point<ArithmeticType2,Rank>
->
+template<class T1, size_t Rank, class T2>
+struct common_type<point<T1,Rank>,point<T2,Rank>>
 {
-  using type = point<typename common_type<ArithmeticType1,ArithmeticType2>::type, Rank>;
+  using type = point<typename common_type<T1,T2>::type, Rank>;
 };
 
 
@@ -106,26 +100,26 @@ using double9  = point<double,9>;
 using double10 = point<double,10>;
 
 
-template<class PointType>
+// T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
+template<class T>
 class __axis_aligned_box
-  : public __small_vector_facade<__axis_aligned_box<PointType>,PointType,2>
+  : public __small_vector_facade<__axis_aligned_box<T>,T,2>
 {
-  using super_t = __small_vector_facade<__axis_aligned_box<PointType>,PointType,2>;
+  using super_t = __small_vector_facade<__axis_aligned_box<T>,T,2>;
 
   public:
-    using point_type = PointType;
+    using point_type = T;
 
     using super_t::super_t;
-    using super_t::operator[];
 
     const point_type& min() const
     {
-      return operator[](0);
+      return (*this)[0];
     }
 
     const point_type& max() const
     {
-      return operator[](1);
+      return (*this)[1];
     }
 
     const point_type& extent() const
@@ -153,10 +147,10 @@ class __axis_aligned_box
 };
 
 
-template<class PointType1, class PointType2>
-struct common_type<__axis_aligned_box<PointType1>,__axis_aligned_box<PointType2>>
+template<class T1, class T2>
+struct common_type<__axis_aligned_box<T1>,__axis_aligned_box<T2>>
 {
-  using type = __axis_aligned_box<common_type_t<PointType1,PointType2>>;
+  using type = __axis_aligned_box<common_type_t<T1,T2>>;
 };
 
 
