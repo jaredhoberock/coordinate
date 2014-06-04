@@ -9,19 +9,6 @@ namespace std
 {
 
 
-template<class, size_t> class point;
-
-
-template<class ArithmeticType1, size_t Rank, class ArithmeticType2>
-struct common_type<
-  point<ArithmeticType1,Rank>,
-  point<ArithmeticType2,Rank>
->
-{
-  using type = point<typename common_type<ArithmeticType1,ArithmeticType2>::type, Rank>;
-};
-
-
 template<class ArithmeticType, size_t Rank>
 class point : public __small_vector_facade<point<ArithmeticType,Rank>, ArithmeticType, Rank>
 {
@@ -33,9 +20,16 @@ class point : public __small_vector_facade<point<ArithmeticType,Rank>, Arithmeti
     point() = default;
 
     point(const point& other) = default;
+};
 
-  private:
-    std::array<ArithmeticType,Rank> storage_;
+
+template<class ArithmeticType1, size_t Rank, class ArithmeticType2>
+struct common_type<
+  point<ArithmeticType1,Rank>,
+  point<ArithmeticType2,Rank>
+>
+{
+  using type = point<typename common_type<ArithmeticType1,ArithmeticType2>::type, Rank>;
 };
 
 
@@ -122,15 +116,16 @@ class __axis_aligned_box
     using point_type = PointType;
 
     using super_t::super_t;
+    using super_t::operator[];
 
     const point_type& min() const
     {
-      return min_;
+      return operator[](0);
     }
 
     const point_type& max() const
     {
-      return max_;
+      return operator[](1);
     }
 
     const point_type& extent() const
@@ -155,19 +150,16 @@ class __axis_aligned_box
 
       return result;
     }
-
-  private:
-    point_type min_, max_;
 };
 
 
-//template<class PointType1, class PointType2>
-//struct common_type<__axis_aligned_box<PointType1>,__axis_aligned_box<PointType2>>
-//{
-//  using type = __axis_aligned_box<common_type_t<PointType1,PointType2>>;
-//};
-//
-//
+template<class PointType1, class PointType2>
+struct common_type<__axis_aligned_box<PointType1>,__axis_aligned_box<PointType2>>
+{
+  using type = __axis_aligned_box<common_type_t<PointType1,PointType2>>;
+};
+
+
 //template<class Range>
 //typename Range::value_type __product(const Range& rng, typename Range::value_type init = typename Range::value_type{1})
 //{
