@@ -421,10 +421,17 @@ template<typename Derived, typename Base, typename T, std::size_t Rank>
                sizeof...(OtherT) == Rank
              >::type>
     __small_vector_adaptor(OtherT... args)
-    {
-      std::initializer_list<value_type> list = {static_cast<value_type>(args)...};
+      : __small_vector_adaptor{static_cast<value_type>(args)...}
+    {}
 
-      std::copy(list.begin(), list.end(), super_t::begin());
+
+    template<class OtherT,
+             typename = typename enable_if<
+               is_convertible<OtherT,value_type>::value
+             >::type>
+    __small_vector_adaptor(std::initializer_list<OtherT> l)
+    {
+      std::copy(l.begin(), l.end(), super_t::begin());
     }
 
 
