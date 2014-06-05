@@ -196,15 +196,16 @@ struct __rank<T, typename enable_if<is_arithmetic<T>::value>::type>
 };
 
 
-// this class is a unit-spaced lattice
-// could call this unit_grid instead
-// a general grid would have dynamic spacing
-// T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
-// note that regular_grid has these, which makes it nestable
+// this class is a lattice, the points of which take on values which are unit-spaced
+// could call this class unit_grid instead, or just lattice, or just grid
+// but a more general grid type might have arbitrary spacing
+// T is any orderable (has strict weak <) type with
+// operators +, +=, -, -=, *, *=,  /, /= such that the rhs's type is regular_grid<T>::index_type
 template<class T>
 class regular_grid
 {
   public:
+    // XXX should rely on std::rank
     constexpr static size_t rank = __rank<T>::value;
     using size_type              = size_t;
 
@@ -261,7 +262,7 @@ class regular_grid
       return box_.max();
     }
 
-    // returns the number of lattice points of each of this regular_grid's dimensions
+    // returns the number of lattice points along each of this regular_grid's dimensions
     index_type extent() const
     {
       return box_.extent();
@@ -279,11 +280,20 @@ class regular_grid
       return __product(extent());
     }
 
+    bool empty() const
+    {
+      return min() == max();
+    }
+
     // returns the value of the (i,j,k,...)th lattice point
     const_reference operator[](const index_type& idx) const
     {
       return min() + idx;
     }
+
+    // XXX ought to add reshape(dimensions) function
+    // XXX how to move the origin? an overload reshape(origin, max) like the constructor?
+    // XXX would reshape(dimensions) set the min() to zero ?
 
   private:
     __axis_aligned_box<value_type> box_;
