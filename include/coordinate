@@ -28,10 +28,12 @@ struct common_type<point<T1,Rank>,point<T2,Rank>>
 };
 
 
+// scalar multiply
+// XXX fix return type -- it should be point<common_type,Rank>
 template<class T1, class T2, size_t Rank>
 typename enable_if<
-  __has_operator_multiplies<T1,T2>::value,
-  point<typename common_type<T1,T2>::type, Rank>
+  (is_arithmetic<T1>::value && __has_operator_multiplies<T1,T2>::value),
+  point<T2,Rank>
 >::type
   operator*(T1 val, const point<T2,Rank>& p)
 {
@@ -123,7 +125,7 @@ class __axis_aligned_box
       return (*this)[1];
     }
 
-    const point_type& extent() const
+    point_type extent() const
     {
       return max() - min();
     }
@@ -135,6 +137,13 @@ class __axis_aligned_box
 
     bool contains(const point_type& x) const
     {
+      return contains(x, is_arithmetic<T>());
+    }
+
+  private:
+    // T is point-like case
+    bool contains(const point_type& x, std::false_type) const
+    {
       bool result = true;
 
       for(size_t dim = 0; dim != super_t::rank; ++dim)
@@ -144,6 +153,12 @@ class __axis_aligned_box
       }
 
       return result;
+    }
+
+    // T is scalar case
+    bool contains(const point_type& x, std::true_type) const
+    {
+      return min() <= x && x < max();
     }
 };
 
@@ -167,54 +182,111 @@ typename Range::value_type __product(const Range& rng, typename Range::value_typ
 }
 
 
-// T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
-// note regular_grid itself has these operators
-template<class T, size_t Rank>
-class regular_grid : __small_vector_facade<regular_grid<T,Rank>, T, Rank>
+template<typename T, typename Enable = void>
+struct __rank
 {
-  using super_t = __small_vector_facade<regular_grid<T,Rank>, T, Rank>;
+  constexpr static size_t value = T::rank;
+};
 
+
+template<typename T>
+struct __rank<T, typename enable_if<is_arithmetic<T>::value>::type>
+{
+  constexpr static size_t value = 1;
+};
+
+
+// this class is a unit-spaced lattice
+// could call this unit_grid instead
+// a general grid would have dynamic spacing
+// T is any type with operators +, +=, -, -=, *, *=,  /, /=, <
+// note that regular_grid has these, which makes it nestable
+template<class T>
+class regular_grid
+{
   public:
-    using index_type = point<size_t,Rank>;
-    using typename super_t::value_type;
-    using typename super_t::size_type;
-    using reference       = value_type;
-    using const_reference = reference;
+    constexpr static size_t rank = __rank<T>::value;
+    using size_type              = size_t;
 
-    using super_t::super_t;
+    // check if T is scalar or point-like
+    // if T is scalar, index_type is just size_t
+    // else, index_type is a point with size_t coordinates
+    using index_type = typename std::conditional<
+      is_arithmetic<T>::value,
+      size_t,
+      point<size_t,rank>
+    >::type;
 
+    using value_type             = T;
+    using reference              = value_type;
+    using const_reference        = reference;
+
+    // XXX should create a grid empty of points
+    regular_grid() = default;
+
+    // copy from
+    regular_grid(const regular_grid&) = default;
+
+    // creates a new regular_grid with min as the first lattice point
+    // through max exclusive
+    regular_grid(const value_type& min, const value_type& max)
+      : box_(min, max)
+    {}
+
+    template<class... Size,
+             typename = typename enable_if<
+               __all_of<
+                 is_convertible<Size,size_t>::value...
+               >::value &&
+               sizeof...(Size) == rank
+             >::type 
+            >
+    regular_grid(const Size&... dimensions)
+      : regular_grid(index_type{static_cast<size_t>(dimensions)...})
+    {}
+
+    regular_grid(const index_type& dimensions)
+      : regular_grid(index_type{}, dimensions)
+    {}
+
+    // returns the value of the smallest lattice point
     const value_type& min() const
     {
       return box_.min();
     }
 
+    // returns the value of the one-past-the-last lattice point
     const value_type& max() const
     {
       return box_.max();
     }
 
-    const value_type& extent() const
+    // returns the number of lattice points of each of this regular_grid's dimensions
+    index_type extent() const
     {
       return box_.extent();
     }
 
+    // returns whether or not p is the value of a lattice point
     bool contains(const value_type& p) const
     {
       return box_.contains(p);
     }
 
+    // returns the number of lattice points
     size_type size() const
     {
       return __product(extent());
     }
 
+    // returns the value of the (i,j,k,...)th lattice point
     const_reference operator[](const index_type& idx) const
     {
       return min() + idx;
     }
 
   private:
-    __axis_aligned_box<index_type> box_;
+    __axis_aligned_box<value_type> box_;
 };
 
 
