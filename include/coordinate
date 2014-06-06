@@ -125,6 +125,16 @@ class __axis_aligned_box
       return (*this)[1];
     }
 
+    void min(const point_type& p)
+    {
+      (*this)[0] = p;
+    }
+
+    void max(const point_type& p)
+    {
+      (*this)[1] = p;
+    }
+
     point_type extent() const
     {
       return max() - min();
@@ -148,8 +158,8 @@ class __axis_aligned_box
 
       for(size_t dim = 0; dim != super_t::rank; ++dim)
       {
-        result = result && min()[dim] <= result;
-        result = result && result < max()[dim];
+        result = result && min()[dim] <= x[dim];
+        result = result && x[dim] < max()[dim];
       }
 
       return result;
@@ -230,6 +240,8 @@ class regular_grid
 
     // creates a new regular_grid with min as the first lattice point
     // through max exclusive
+    // XXX should probably make this (min, extent) instead
+    //     otherwise we'd have to require that min[i] <= max[i]
     regular_grid(const value_type& min, const value_type& max)
       : box_(min, max)
     {}
@@ -251,13 +263,13 @@ class regular_grid
     {}
 
     // returns the value of the smallest lattice point
-    const value_type& min() const
+    value_type min() const
     {
       return box_.min();
     }
 
     // returns the value of the one-past-the-last lattice point
-    const value_type& max() const
+    value_type max() const
     {
       return box_.max();
     }
@@ -291,9 +303,25 @@ class regular_grid
       return min() + idx;
     }
 
-    // XXX ought to add reshape(dimensions) function
-    // XXX how to move the origin? an overload reshape(origin, max) like the constructor?
-    // XXX would reshape(dimensions) set the min() to zero ?
+    // reshape does not move the origin
+    void reshape(const index_type& dimensions)
+    {
+      box_.max(box_.min() + dimensions);
+    }
+
+    // reshape does not move the origin
+    template<class... Size,
+             typename = typename enable_if<
+               __all_of<
+                 is_convertible<Size,size_t>::value...
+               >::value &&
+               sizeof...(Size) == rank
+             >::type 
+            >
+    void reshape(const Size&... dimensions)
+    {
+      reshape(index_type{static_cast<size_t>(dimensions)...});
+    }
 
   private:
     __axis_aligned_box<value_type> box_;
