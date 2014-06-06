@@ -206,6 +206,9 @@ struct __rank<T, typename enable_if<is_arithmetic<T>::value>::type>
 };
 
 
+template<class T> class __grid_iterator;
+
+
 // this class is a lattice, the points of which take on values which are unit-spaced
 // could call this class unit_grid instead, or just lattice, or just grid
 // but a more general grid type might have arbitrary spacing
@@ -231,6 +234,8 @@ class regular_grid
     using value_type             = T;
     using reference              = value_type;
     using const_reference        = reference;
+    using const_iterator         = __grid_iterator<T>;
+    using iterator               = const_iterator;
 
     // XXX should create a grid empty of points
     regular_grid() = default;
@@ -323,10 +328,241 @@ class regular_grid
       reshape(index_type{static_cast<size_t>(dimensions)...});
     }
 
+    const_iterator begin() const
+    {
+      return __grid_iterator<value_type>(*this);
+    }
+
+    const_iterator end() const
+    {
+      return __grid_iterator<value_type>(*this, __grid_iterator<value_type>::past_the_end(*this));
+    }
+
   private:
     __axis_aligned_box<value_type> box_;
 };
 
+
+template<class T>
+class __grid_iterator
+  : public std::iterator<
+      std::random_access_iterator_tag,
+      T,
+      std::ptrdiff_t,
+      void,
+      T
+    >
+{
+  private:
+    using super_t = std::iterator<
+      std::random_access_iterator_tag,
+      T,
+      std::ptrdiff_t,
+      void,
+      T
+    >;
+
+    static constexpr size_t rank = regular_grid<T>::rank;
+
+  public:
+    using typename super_t::value_type;
+    using typename super_t::reference;
+    using typename super_t::difference_type;
+
+    explicit __grid_iterator(const regular_grid<T>& grid)
+      : grid_(grid),
+        current_(grid_.min())
+    {}
+
+    explicit __grid_iterator(const regular_grid<T>& grid, T current)
+      : grid_(grid),
+        current_(current)
+    {}
+
+    reference operator*() const
+    {
+      return current_;
+    }
+
+    __grid_iterator& operator++()
+    {
+      T min = grid_.min();
+      T max = grid_.max();
+
+      for(int i = rank; i-- > 0;)
+      {
+        ++current_[i];
+
+        if(min[i] <= current_[i] && current_[i] < max[i])
+        {
+          return *this;
+        }
+        else if(i > 0)
+        {
+          // don't roll the final dimension over to the origin
+          current_[i] = min[i];
+        }
+      }
+
+      return *this;
+    }
+
+    __grid_iterator operator++(int)
+    {
+      __grid_iterator result = *this;
+      ++(*this);
+      return result;
+    }
+
+    __grid_iterator& operator--()
+    {
+      T min = grid_.min();
+      T max = grid_.max();
+
+      for(int i = rank; i-- > 0;)
+      {
+        --current_[i];
+
+        if(min[i] <= current_[i])
+        {
+          return *this;
+        }
+        else
+        {
+          current_[i] = max[i] - 1;
+        }
+      }
+
+      return *this;
+    }
+
+    __grid_iterator operator--(int)
+    {
+      __grid_iterator result = *this;
+      --(*this);
+      return result;
+    }
+
+    __grid_iterator operator+(difference_type n) const
+    {
+      __grid_iterator result{*this};
+      return result += n;
+    }
+
+    __grid_iterator& operator+=(difference_type n)
+    {
+      difference_type idx = linearize() + n;
+
+      auto s = stride();
+
+      for(size_t i = 0; i < rank; ++i)
+      {
+        current_[i] = grid_.min()[i] + idx / stride[i];
+        idx %= stride[i];
+      }
+
+      return *this;
+    }
+
+    __grid_iterator& operator-=(difference_type n)
+    {
+      return *this += -n;
+    }
+
+    __grid_iterator operator-(difference_type n) const
+    {
+      __grid_iterator result{*this};
+      return result -= n;
+    }
+
+    difference_type operator-(const __grid_iterator& rhs) const
+    {
+      return linearize() - rhs.linearize();
+    }
+
+    bool operator==(const __grid_iterator& rhs) const
+    {
+      return current_ == rhs.current_;
+    }
+
+    bool operator!=(const __grid_iterator& rhs) const
+    {
+      return !(*this == rhs);
+    }
+
+    bool operator<(const __grid_iterator& rhs) const
+    {
+      return current_ < rhs.current_;
+    }
+
+    bool operator<=(const __grid_iterator& rhs) const
+    {
+      return !(rhs < *this);
+    }
+
+    bool operator>(const __grid_iterator& rhs) const
+    {
+      return rhs < *this;
+    }
+
+    bool operator>=(const __grid_iterator &rhs) const
+    {
+      return !(rhs > *this);
+    }
+
+    static T past_the_end(const regular_grid<T>& grid)
+    {
+      T result = grid.min();
+      result[0] = grid.max()[0];
+      return result;
+    }
+
+  private:
+    point<difference_type,rank> stride() const
+    {
+      point<difference_type,rank> result;
+      result[rank - 1] = 1;
+
+      for(int i = rank - 1; i-- > 0;)
+      {
+        // accumulate the stride of the lower dimension
+        result[i] = result[i+1] * grid_.extent()[i];
+      }
+
+      return result;
+    }
+
+    difference_type linearize() const
+    {
+      if(is_past_the_end())
+      {
+        return grid_.size();
+      }
+
+      // subtract grid min from current to get
+      // 0-based indices along each axis
+      T idx = current_ - grid_.min();
+
+      difference_type multiplier = 1;
+      difference_type result = 0;
+
+      for(int i = rank; i-- > 0; )
+      {
+        result += multiplier * idx[i];
+        multiplier *= grid_.extent()[i];
+      }
+
+      return result;
+    }
+
+    bool is_past_the_end() const
+    {
+      return !(current_[0] < grid_.max()[0]);
+    }
+
+    regular_grid<T> grid_;
+    T current_;
+};
 
 }
 
