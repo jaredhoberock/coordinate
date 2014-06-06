@@ -386,25 +386,7 @@ class __grid_iterator
 
     __grid_iterator& operator++()
     {
-      T min = grid_.min();
-      T max = grid_.max();
-
-      for(int i = rank; i-- > 0;)
-      {
-        ++current_[i];
-
-        if(min[i] <= current_[i] && current_[i] < max[i])
-        {
-          return *this;
-        }
-        else if(i > 0)
-        {
-          // don't roll the final dimension over to the origin
-          current_[i] = min[i];
-        }
-      }
-
-      return *this;
+      return increment(std::is_arithmetic<T>());
     }
 
     __grid_iterator operator++(int)
@@ -416,24 +398,7 @@ class __grid_iterator
 
     __grid_iterator& operator--()
     {
-      T min = grid_.min();
-      T max = grid_.max();
-
-      for(int i = rank; i-- > 0;)
-      {
-        --current_[i];
-
-        if(min[i] <= current_[i])
-        {
-          return *this;
-        }
-        else
-        {
-          current_[i] = max[i] - 1;
-        }
-      }
-
-      return *this;
+      return decrement(std::is_arithmetic<T>());
     }
 
     __grid_iterator operator--(int)
@@ -451,17 +416,7 @@ class __grid_iterator
 
     __grid_iterator& operator+=(difference_type n)
     {
-      difference_type idx = linearize() + n;
-
-      auto s = stride();
-
-      for(size_t i = 0; i < rank; ++i)
-      {
-        current_[i] = grid_.min()[i] + idx / stride[i];
-        idx %= stride[i];
-      }
-
-      return *this;
+      return advance(std::is_arithmetic<T>());
     }
 
     __grid_iterator& operator-=(difference_type n)
@@ -512,12 +467,94 @@ class __grid_iterator
 
     static T past_the_end(const regular_grid<T>& grid)
     {
-      T result = grid.min();
-      result[0] = grid.max()[0];
-      return result;
+      return past_the_end(grid, std::is_arithmetic<T>());
     }
 
   private:
+    // point-like case
+    __grid_iterator& increment(std::false_type)
+    {
+      T min = grid_.min();
+      T max = grid_.max();
+
+      for(int i = rank; i-- > 0;)
+      {
+        ++current_[i];
+
+        if(min[i] <= current_[i] && current_[i] < max[i])
+        {
+          return *this;
+        }
+        else if(i > 0)
+        {
+          // don't roll the final dimension over to the origin
+          current_[i] = min[i];
+        }
+      }
+
+      return *this;
+    }
+
+    // scalar case
+    __grid_iterator& increment(std::true_type)
+    {
+      ++current_;
+      return *this;
+    }
+
+    // point-like case
+    __grid_iterator& decrement(std::false_type)
+    {
+      T min = grid_.min();
+      T max = grid_.max();
+
+      for(int i = rank; i-- > 0;)
+      {
+        --current_[i];
+
+        if(min[i] <= current_[i])
+        {
+          return *this;
+        }
+        else
+        {
+          current_[i] = max[i] - 1;
+        }
+      }
+
+      return *this;
+    }
+
+    // scalar case
+    __grid_iterator& decrement(std::true_type)
+    {
+      --current_;
+      return *this;
+    }
+
+    // point-like case
+    __grid_iterator& advance(difference_type n, std::false_type)
+    {
+      difference_type idx = linearize() + n;
+
+      auto s = stride();
+
+      for(size_t i = 0; i < rank; ++i)
+      {
+        current_[i] = grid_.min()[i] + idx / stride[i];
+        idx %= stride[i];
+      }
+
+      return *this;
+    }
+
+    // scalar case
+    __grid_iterator& advance(difference_type n, std::true_type)
+    {
+      current_ += n;
+      return *this;
+    }
+
     point<difference_type,rank> stride() const
     {
       point<difference_type,rank> result;
@@ -533,6 +570,12 @@ class __grid_iterator
     }
 
     difference_type linearize() const
+    {
+      return linearize(std::is_arithmetic<T>());
+    }
+
+    // point-like case
+    difference_type linearize(std::false_type) const
     {
       if(is_past_the_end())
       {
@@ -553,6 +596,26 @@ class __grid_iterator
       }
 
       return result;
+    }
+
+    // scalar case
+    difference_type linearize(std::true_type) const
+    {
+      return current_;
+    }
+
+    // point-like case
+    static T past_the_end(const regular_grid<T>& grid, std::false_type)
+    {
+      T result = grid.min();
+      result[0] = grid.max()[0];
+      return result;
+    }
+
+    // scalar case
+    static T past_the_end(const regular_grid<T>& grid, std::true_type)
+    {
+      return grid.max();
     }
 
     bool is_past_the_end() const
