@@ -52,6 +52,10 @@ int main()
   std::copy(g1.begin(), g1.end(), std::ostream_iterator<int>(std::cout, " "));
   std::cout << std::endl;
 
+  std::cout << "g1[0]: " << g1[0] << std::endl;
+  std::cout << "g2[0]: " << g2[0] << std::endl;
+  std::cout << "g3[0]: " << g3[0] << std::endl;
+
   return 0;
 }
 
