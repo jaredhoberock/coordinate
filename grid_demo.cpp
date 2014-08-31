@@ -36,7 +36,7 @@ int main()
   std::cout << "g2.min(): " << g2.min() << std::endl;
   std::cout << "g2.max(): " << g2.max() << std::endl;
 
-  std::cout << "g2.extent(): " << g2.extent() << std::endl;
+  std::cout << "g2.shape(): " << g2.shape() << std::endl;
 
   std::cout << "g2.contains({10,10}): " << g2.contains({10,10}) << std::endl;
   assert(g2.contains({10,10}));
