@@ -36,6 +36,15 @@ int main()
 
   std::cout << "one[2]: " << one[2] << std::endl;
 
+  auto multiply_by_scalar = 5 * x;
+
+  std::cout << "multiply_by_scalar: " << multiply_by_scalar << std::endl;
+
+  std::float4 four_float_ones{1,1,1,1};
+  std::int3 three_int_zeros{0,0,0};
+
+  std::cout << "zeros are less than ones: " << (three_int_zeros < four_float_ones) << std::endl;
+
   return 0;
 }
 
