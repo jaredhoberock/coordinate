@@ -45,10 +45,6 @@ template<bool Value1> struct __all_of<Value1>
 {};
 
 
-template<class T1, class T2>
-using common_type_t = typename common_type<T1,T2>::type;
-
-
 template<typename Derived, typename T, std::size_t Rank>
   class __small_vector_facade : public __arithmetic_tuple_facade<Derived>
 {
