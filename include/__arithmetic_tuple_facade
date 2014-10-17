@@ -16,7 +16,7 @@ template<typename Derived>
     struct plus_assign
     {
       template<typename T1, typename T2>
-      T1& operator()(T1 &lhs, const T2& rhs) const
+      constexpr T1& operator()(T1 &lhs, const T2& rhs) const
       {
         return lhs += rhs;
       }
@@ -25,7 +25,7 @@ template<typename Derived>
     struct minus_assign
     {
       template<typename T1, typename T2>
-      T1& operator()(T1 &lhs, const T2& rhs) const
+      constexpr T1& operator()(T1 &lhs, const T2& rhs) const
       {
         return lhs -= rhs;
       }
@@ -34,7 +34,7 @@ template<typename Derived>
     struct multiplies_assign
     {
       template<typename T1, typename T2>
-      T1& operator()(T1 &lhs, const T2& rhs) const
+      constexpr T1& operator()(T1 &lhs, const T2& rhs) const
       {
         return lhs *= rhs;
       }
@@ -46,7 +46,7 @@ template<typename Derived>
       T c;
 
       template<typename U>
-      U& operator()(U& x) const
+      constexpr U& operator()(U& x) const
       {
         return x *= c;
       }
@@ -55,7 +55,7 @@ template<typename Derived>
     struct divides_assign
     {
       template<typename T1, typename T2>
-      T1& operator()(T1 &lhs, const T2& rhs) const
+      constexpr T1& operator()(T1 &lhs, const T2& rhs) const
       {
         return lhs /= rhs;
       }
@@ -67,7 +67,7 @@ template<typename Derived>
       T c;
 
       template<typename U>
-      U& operator()(U& x) const
+      constexpr U& operator()(U& x) const
       {
         return x /= c;
       }
@@ -76,7 +76,7 @@ template<typename Derived>
     struct make_derived
     {
       template<class... Args>
-      Derived operator()(Args&&... args) const
+      constexpr Derived operator()(Args&&... args) const
       {
         return Derived{std::forward<Args>(args)...};
       }
@@ -95,45 +95,41 @@ template<typename Derived>
   public:
 
   // fused op-assignment
-  template<class ArithmeticTuple>
-  typename std::enable_if<
-    std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value,
-    Derived&
-  >::type
-    operator*=(const ArithmeticTuple& rhs)
+  template<class ArithmeticTuple,
+           class = typename std::enable_if<
+             std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value
+           >::type>
+  Derived& operator*=(const ArithmeticTuple& rhs)
   {
     __tu::tuple_for_each(multiplies_assign{}, derived(), rhs);
     return derived();
   }
 
-  template<class ArithmeticTuple>
-  typename std::enable_if<
-    std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value,
-    Derived&
-  >::type
-    operator/=(const ArithmeticTuple& rhs)
+  template<class ArithmeticTuple,
+           class = typename std::enable_if<
+             std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value
+           >::type>
+  Derived& operator/=(const ArithmeticTuple& rhs)
   {
     __tu::tuple_for_each(divides_assign{}, derived(), rhs);
     return derived();
   }
 
-  template<class ArithmeticTuple>
-  typename std::enable_if<
-    std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value,
-    Derived&
-  >::type
-    operator+=(const ArithmeticTuple& rhs)
+  template<class ArithmeticTuple,
+           class = typename std::enable_if<
+             std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value
+           >::type>
+  Derived& operator+=(const ArithmeticTuple& rhs)
   {
     __tu::tuple_for_each(plus_assign{}, derived(), rhs);
     return derived();
   }
 
-  template<class ArithmeticTuple>
-  typename std::enable_if<
-    std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value,
-    Derived&
-  >::type
-    operator-=(const ArithmeticTuple& rhs)
+  template<class ArithmeticTuple,
+           class = typename std::enable_if<
+             std::tuple_size<Derived>::value == std::tuple_size<ArithmeticTuple>::value
+           >::type>
+  Derived& operator-=(const ArithmeticTuple& rhs)
   {
     __tu::tuple_for_each(minus_assign{}, derived(), rhs);
     return derived();
